@@ -1,0 +1,5 @@
+venv/
+database/*.db
+pipeline.log
+__pycache__/
+.streamlit/
