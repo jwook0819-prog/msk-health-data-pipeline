@@ -99,18 +99,117 @@ if df is not None:
                 else: st.success("✅ 지표가 안정적으로 유지되고 있습니다.")
         except: pred = "N/A"
 
-        # 시각화 (레이더)
+# --- 레이더 차트 및 상세 상태 레이아웃 ---
         cv_l, cv_r = st.columns([1, 1])
-        joints = ['cervical', 'shoulder', 'trunk', 'hip', 'knee', 'ankle']
-        fig_r = go.Figure(go.Scatterpolar(r=[p_data[f'{j}_rom'] for j in joints], theta=[j.capitalize() for j in joints], fill='toself'))
-        fig_r.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 180])), showlegend=False)
-        with cv_l: st.plotly_chart(fig_r, use_container_width=True)
+
+        # 관절 목록 및 임상 정상 기준치(Normal ROM) 정의
+        joints_map = {
+            'cervical': {'name': 'Cervical', 'limit': 45},
+            'shoulder': {'name': 'Shoulder', 'limit': 150},
+            'trunk': {'name': 'Trunk', 'limit': 60},
+            'hip': {'name': 'Hip', 'limit': 100},
+            'knee': {'name': 'Knee', 'limit': 130},
+            'ankle': {'name': 'Ankle', 'limit': 20}
+        }
+        joints = list(joints_map.keys())
+        normal_rom = [info['limit'] for info in joints_map.values()]
+
+        with cv_l:
+            st.write("#### 🎯 신체 밸런스 맵 (정밀 분석)")
+            
+            # 데이터 추출 및 정밀도 설정 (소수점 첫째 자리)
+            patient_vals = [round(float(p_data[f'{j}_rom']), 1) for j in joints]
+            
+            # 가동성 점수 비율 계산 (정상치 대비 평균 %)
+            avg_rom_ratio = sum([v/n for v, n in zip(patient_vals, normal_rom)]) / len(joints)
+            
+            # 상태에 따른 테마 색상 결정 (70% 미만 시 경고색)
+            is_warning = avg_rom_ratio < 0.7
+            theme_color = '#ef5350' if is_warning else '#007bff'
+            fill_color = 'rgba(239, 83, 80, 0.3)' if is_warning else 'rgba(0, 123, 255, 0.3)'
+
+            fig_r = go.Figure()
+
+            # 1. 배경 가이드라인: 정상 가동 범위 (Grey Area)
+            fig_r.add_trace(go.Scatterpolar(
+                r=normal_rom,
+                theta=[info['name'] for info in joints_map.values()],
+                fill='toself',
+                name='정상 가동 범위 (Reference)',
+                fillcolor='rgba(200, 200, 200, 0.15)',
+                line=dict(color='rgba(150, 150, 150, 0.4)', dash='dash', width=1),
+                hoverinfo='skip' # 가이드라인은 툴팁에서 제외
+            ))
+
+            # 2. 전면 데이터: 환자 측정치 (Colored Area)
+            fig_r.add_trace(go.Scatterpolar(
+                r=patient_vals,
+                theta=[info['name'] for info in joints_map.values()],
+                fill='toself',
+                name='환자 측정 데이터',
+                fillcolor=fill_color,
+                line=dict(color=theme_color, width=3),
+                hovertemplate='<b>%{theta}</b><br>측정값: %{r}°<extra></extra>'
+            ))
+
+            # 차트 레이아웃 설정
+            fig_r.update_layout(
+                polar=dict(
+                    radialaxis=dict(
+                        visible=True, 
+                        range=[0, 180], # 가동 범위 시각화 고정
+                        tickfont=dict(size=9, color="#666"),
+                        dtick=30,
+                        gridcolor="#eee"
+                    ),
+                    angularaxis=dict(
+                        gridcolor="#eee",
+                        rotation=90, # 정북 방향(Cervical) 시작
+                        direction="clockwise"
+                    ),
+                    bgcolor="white"
+                ),
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=1.1, xanchor="center", x=0.5),
+                margin=dict(t=80, b=40, l=60, r=60),
+                height=450
+            )
+            
+            st.plotly_chart(fig_r, use_container_width=True)
+
         with cv_r:
             st.write("#### 📍 부위별 상세 상태")
+            
+            # 부위별 카드 출력
             for j in joints:
+                info = joints_map[j]
+                val = round(float(p_data[f'{j}_rom']), 1)
                 status = p_data.get(f'{j}_status', 'N/A')
-                color = "#ef5350" if status == "Severe" else "#66bb6a"
-                st.markdown(f'<div class="status-card" style="background-color: {color};">{j.capitalize()} : {status} ({p_data[f"{j}_rom"]}°)</div>', unsafe_allow_html=True)
+                
+                # 상태별 시각화 로직
+                status_color = "#ef5350" if status in ["Severe", "Impaired"] or val < info['limit'] * 0.7 else "#66bb6a"
+                
+                st.markdown(f"""
+                    <div style="
+                        background-color: {status_color}; 
+                        padding: 12px 20px; 
+                        border-radius: 8px; 
+                        color: white; 
+                        margin-bottom: 10px; 
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <span style="font-weight: bold; font-size: 1.1em;">{info['name']}</span>
+                        <span style="font-size: 1.0em;"><b>{val}°</b> / {info['limit']}° ({status})</span>
+                    </div>
+                """, unsafe_allow_html=True)
+
+            # 종합 소견 한 줄
+            if is_warning:
+                st.error(f"🚩 **종합 소견:** 전체 가동성이 정상 대비 {round(avg_rom_ratio*100, 1)}% 수준으로 저하되어 있습니다. 집중 재활이 권장됩니다.")
+            else:
+                st.success(f"✅ **종합 소견:** 전반적인 신체 밸런스가 양호합니다 (정상 대비 {round(avg_rom_ratio*100, 1)}%).")
 
         # 시계열 추세
         st.write("#### 📈 Recovery Roadmap")
