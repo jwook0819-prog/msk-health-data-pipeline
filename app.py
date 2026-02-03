@@ -6,7 +6,7 @@ from fpdf import FPDF
 # 1. 페이지 설정
 st.set_page_config(page_title="MSK AI Analytics", page_icon="🏥", layout="wide")
 
-# 2. 맞춤형 CSS (디자인 요소)
+# 2. 맞춤형 CSS
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -54,20 +54,14 @@ df = load_db_data()
 
 # --- 4. 사이드바 UI 구성 ---
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3774/3774293.png", width=60)
-st.sidebar.title("데이터 관리")
+st.sidebar.title("진료 매니저")
 
 if df is not None:
     # [1순위: 환자 선택]
     p_list = sorted(df['patient_id'].unique())
-# 1. 서브헤더로 큰 글씨 출력
     st.sidebar.subheader("👤 환자 선택") 
-
-# 2. 실제 셀렉트박스 (라벨은 빈 문자열로 처리하여 에러 방지)
-    sel_id = st.sidebar.selectbox(
-    "", # 라벨을 비워둠
-    options=p_list,
-    key="patient_selector" # 혹시 모를 충돌 방지를 위해 고유 키 부여
-)
+    sel_id = st.sidebar.selectbox("", options=p_list, key="patient_selector")
+    
     p_data = df[df['patient_id'] == sel_id].iloc[0]
     history = df[df['patient_id'] == sel_id].sort_values('ingested_at')
 
@@ -92,7 +86,7 @@ if df is not None:
         c2.markdown(f"**최근 측정일:** `{p_data['ingested_at'].strftime('%Y-%m-%d')}`")
         st.markdown("---")
 
-        # AI 진단 로직
+        # AI 진단
         try:
             model = joblib.load('models/pain_predictor.pkl')
             feats = joblib.load('models/feature_names.pkl')
@@ -105,7 +99,7 @@ if df is not None:
                 else: st.success("✅ 지표가 안정적으로 유지되고 있습니다.")
         except: pred = "N/A"
 
-        # 시각화 (레이더 차트)
+        # 시각화 (레이더)
         cv_l, cv_r = st.columns([1, 1])
         joints = ['cervical', 'shoulder', 'trunk', 'hip', 'knee', 'ankle']
         fig_r = go.Figure(go.Scatterpolar(r=[p_data[f'{j}_rom'] for j in joints], theta=[j.capitalize() for j in joints], fill='toself'))
@@ -119,77 +113,58 @@ if df is not None:
                 st.markdown(f'<div class="status-card" style="background-color: {color};">{j.capitalize()} : {status} ({p_data[f"{j}_rom"]}°)</div>', unsafe_allow_html=True)
 
         # 시계열 추세
-        st.write("#### 📈 Recovery Roadmap (시계열 분석)")
+        st.write("#### 📈 Recovery Roadmap")
         fig_t = go.Figure()
         fig_t.add_trace(go.Bar(x=history['ingested_at'], y=history['mobility_score'], name="가동성", marker_color='#E3F2FD'))
         fig_t.add_trace(go.Scatter(x=history['ingested_at'], y=history['avg_pain'], name="통증", yaxis="y2", line=dict(color='#ef5350', width=4)))
         fig_t.update_layout(yaxis=dict(title="Mobility"), yaxis2=dict(title="Pain", overlaying="y", side="right"), template="plotly_white")
         st.plotly_chart(fig_t, use_container_width=True)
 
-        # ---------------------------------------------------------
-        # 여기서부터 추가: 6개 관절 AI 맞춤 운동 처방 섹션
-       # ---------------------------------------------------------
+        # 운동 처방 섹션
         st.divider()
         st.subheader("🧘 AI 맞춤형 운동 처방 (6대 관절)")
-
-# 1. 6개 관절 가이드 데이터베이스 정의
         guide_db = {
             'cervical': {'name': '목 스트레칭', 'limit': 45, 'desc': '목 정렬 및 거북목 개선'},
             'shoulder': {'name': '어깨 스트레칭', 'limit': 150, 'desc': '굽은 어깨 및 가동성 확보'},
-            'trunk': {'name': '몸통 스트레칭', 'limit': 60, 'desc': '척추 기립근 및 코어 강화'},
-            'hip': {'name': '골반 스트레칭', 'limit': 100, 'desc': '골반 가동성 및 유연성 증대'},
-            'knee': {'name': '무릎 스트레칭', 'limit': 130, 'desc': '무릎 관절 안정성 강화'},
-            'ankle': {'name': '발목 스트레칭', 'limit': 20, 'desc': '보행 균형 및 발목 유연성'}
-            }
+            'trunk': {'name': '몸통 스트레칭', 'limit': 60, 'desc': '척추 기립근 강화'},
+            'hip': {'name': '골반 스트레칭', 'limit': 100, 'desc': '하체 유연성 증대'},
+            'knee': {'name': '무릎 스트레칭', 'limit': 130, 'desc': '무릎 관절 안정화'},
+            'ankle': {'name': '발목 스트레칭', 'limit': 20, 'desc': '보행 균형 개선'}
+        }
 
-# 2. 기준치 미달인 부위 추출
         low_parts = [p for p, info in guide_db.items() if p_data.get(f'{p}_rom', 180) < info['limit']]
 
-    if low_parts:
-    # 화면에 3개씩 배치하기 위해 행(row)을 나눔
-        rows = [low_parts[i:i + 3] for i in range(0, len(low_parts), 3)]
-# ... (이전 코드 생략) ...
+        if low_parts:
+            rows = [low_parts[i:i + 3] for i in range(0, len(low_parts), 3)]
+            for row in rows:
+                cols = st.columns(3)
+                for idx, part in enumerate(row):
+                    info = guide_db[part]
+                    with cols[idx]:
+                        st.info(f"**{part.upper()} 관리**")
+                        st.markdown(f"**{info['name']}**")
+                        st.caption(info['desc'])
+                        search_url = f"https://www.youtube.com/results?search_query={info['name']}+방법"
+                        st.link_button("🎥 가이드", search_url, use_container_width=True)
+        else:
+            st.success("✨ 모든 관절 상태가 양호합니다!")
 
-if low_parts:
-    # 1. 화면에 3개씩 배치하기 위해 행(row)을 나눔
-    rows = [low_parts[i:i + 3] for i in range(0, len(low_parts), 3)]
-    
-    for row in rows:
-        cols = st.columns(3) # <--- 여기서부터 4칸 들여쓰기 (Tab 한 번)
-        for idx, part in enumerate(row): # <--- 여기도 들여쓰기
-            info = guide_db[part]
-            with cols[idx]: # <--- 여기도 들여쓰기
-                # 시각적으로 강조된 카드 형태
-                st.info(f"**{part.upper()} 관리 대상**")
-                st.markdown(f"**{info['name']}**")
-                st.caption(info['desc'])
-                # 유튜브 검색 링크
-                search_url = f"https://www.youtube.com/results?search_query={info['name']}+방법"
-                st.link_button("🎥 영상 가이드 보기", search_url, use_container_width=True)
-else:
-    st.success("✨ 모든 관절 가동 범위가 정상입니다! 현재의 건강한 상태를 유지하세요.")
-
-# ... (이후 PDF 다운로드 버튼 코드) ...
-
-        # [2순위: PDF 발행 버튼 - 환자 선택 바로 아래에 배치하기 위해 위치 조정]
+    # [2순위: PDF 발행] - 환자 선택 블록(if df) 안에 위치
     st.sidebar.divider()
     st.sidebar.subheader("📄 결과물 내보내기")
     radar_bytes = fig_r.to_image(format="png")
     final_pdf = create_pdf(sel_id, p_data['age'], pred, "Care Needed" if (isinstance(pred, float) and pred > 5) else "Good", radar_bytes)
     st.sidebar.download_button("📂 PDF 리포트 발행", data=bytes(final_pdf), file_name=f"MSK_Report_{sel_id}.pdf", use_container_width=True)
-        
 
-# --- 5. 사이드바 하단 (엑셀 업로드 섹션) ---
-# 빈 공간을 여러 개 넣어 아래로 밀어냅니다.
-    st.sidebar.write("") 
-
+# --- 5. 사이드바 최하단 (업로드 섹션) ---
+for _ in range(10): st.sidebar.write("") # 간격 조절
 st.sidebar.divider()
-st.sidebar.subheader("환자 업로드")
-uploaded_file = st.sidebar.file_uploader("📂 파일 업로드 (Excel)", type=["xlsx"])
-st.sidebar.download_button("📥 업로드 양식 받기", get_sample_excel(), "msk_template.xlsx", use_container_width=True)
+st.sidebar.subheader("환자 데이터 업로드")
+uploaded_file = st.sidebar.file_uploader("📂 파일 업로드", type=["xlsx"])
+st.sidebar.download_button("📥 양식 다운로드", get_sample_excel(), "msk_template.xlsx", use_container_width=True)
 
 if uploaded_file:
-    st.sidebar.success("파일이 감지되었습니다. 파이프라인 반영은 서버 설정을 확인하세요.")
+    st.sidebar.success("파일 감지됨! 파이프라인 설정을 확인하세요.")
 
 if df is None:
-    st.error("데이터가 없습니다. 파이프라인을 먼저 실행하세요.")
+    st.error("데이터베이스 파일이 없습니다. 파이프라인을 먼저 실행하세요.")
