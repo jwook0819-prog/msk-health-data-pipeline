@@ -76,6 +76,31 @@ patient_list = df['patient_id'].tolist()
 selected_id = st.sidebar.selectbox("환자 ID를 선택하세요", patient_list)
 p_data = df[df['patient_id'] == selected_id].iloc[0]
 
+# --- 사이드바: 파일 업로드 섹션 ---
+st.sidebar.divider()
+st.sidebar.subheader("📂 데이터 외부 입력")
+uploaded_file = st.sidebar.file_uploader("환자 엑셀 파일을 선택하세요", type=["xlsx", "csv"])
+
+# 파일이 업로드되었을 때의 로직
+if uploaded_file is not None:
+    try:
+        # 파일 확장자에 따라 읽기
+        if uploaded_file.name.endswith('xlsx'):
+            ext_df = pd.read_excel(uploaded_file, engine='openpyxl')
+        else:
+            ext_df = pd.read_csv(uploaded_file)
+            
+        st.sidebar.success("✅ 외부 데이터 로드 완료!")
+        
+        # 분석 대상 선택 (기존 DB 데이터 vs 업로드 데이터)
+        data_source = st.sidebar.radio("분석 데이터 선택", ["DB 데이터", "업로드 데이터"])
+        
+        if data_source == "업로드 데이터":
+            df = ext_df # 메인 데이터프레임을 업로드된 데이터로 교체
+            st.sidebar.warning("⚠️ 업로드된 데이터로 분석을 진행합니다.")
+    except Exception as e:
+        st.sidebar.error(f"파일을 읽는 중 오류가 발생했습니다: {e}")
+
 # 5. 메인 화면 헤더
 st.title("🦴 근골격계 데이터 분석 리포트")
 st.markdown(f"**데이터 업데이트 시간:** `{p_data['ingested_at']}`")
