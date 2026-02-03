@@ -127,13 +127,11 @@ if df is not None:
 
 # --- 5. 사이드바 하단 (엑셀 업로드 섹션) ---
 # 빈 공간을 여러 개 넣어 아래로 밀어냅니다.
-st.sidebar.divider() # 실선 추가
-for _ in range(5):
     st.sidebar.write("") 
 
 st.sidebar.divider()
-st.sidebar.subheader("⚙️ 데이터 관리")
-uploaded_file = st.sidebar.file_uploader("📂 데이터 업로드 (Excel)", type=["xlsx"])
+st.sidebar.subheader("환자 업로드")
+uploaded_file = st.sidebar.file_uploader("📂 파일 업로드 (Excel)", type=["xlsx"])
 st.sidebar.download_button("📥 업로드 양식 받기", get_sample_excel(), "msk_template.xlsx", use_container_width=True)
 
 if uploaded_file:
