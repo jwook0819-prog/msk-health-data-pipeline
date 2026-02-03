@@ -150,7 +150,7 @@ if df is not None:
     low_parts = [p for p, info in joints_map.items() if (float(p_data.get(f'{p}_rom', 0)) / info['limit']) < 0.7]
 
     if low_parts:
-        st.warning(f"⚠️ 현재 가동 범위 달성도가 낮은 **{len(low_parts)}개 부위** 집중 개선 프로그램입니다.")
+        st.warning(f"⚠️ 현재 가동 범위 달성도가 낮은 **{len(low_parts)}개 부위** 운동영상 링크입니다.")
         display_parts = low_parts
     else:
         st.success("✨ 모든 관절이 양호한 상태입니다! 예방 차원의 전신 관리 프로그램을 추천합니다.")
