@@ -127,7 +127,8 @@ if df is not None:
 
 # --- 5. 사이드바 하단 (엑셀 업로드 섹션) ---
 # 빈 공간을 여러 개 넣어 아래로 밀어냅니다.
-for _ in range(15):
+st.sidebar.divider() # 실선 추가
+for _ in range(5):
     st.sidebar.write("") 
 
 st.sidebar.divider()
