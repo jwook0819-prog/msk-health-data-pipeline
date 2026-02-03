@@ -1,37 +1,29 @@
-import os
-import sys
-import datetime
+import os, datetime
 import pandas as pd
+import numpy as np
 import duckdb
-
-# 경로 설정: scripts 폴더 내의 파일을 찾을 수 있도록 함
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
-
-try:
-    from generate_data import generate_msk_data
-except ImportError:
-    from scripts.generate_data import generate_msk_data
+from scripts.generate_data import generate_msk_data
 
 def ingest_raw_data():
-    # 1. 데이터 수집
-    df = generate_msk_data(100)
+    base_df = generate_msk_data(100)
+    all_visits = []
+    start_date = datetime.datetime(2025, 1, 1)
     
-    # 2. 메타데이터 추가
-    df['ingested_at'] = datetime.datetime.now()
-    
-    # 3. Raw 레이어 저장
+    for _, row in base_df.iterrows():
+        for visit in range(3): # 환자당 3회 방문 생성
+            new_row = row.copy()
+            new_row['ingested_at'] = start_date + datetime.timedelta(days=visit * 14)
+            # 방문할수록 상태 호전되는 트렌드
+            noise = np.random.normal(0, 1)
+            new_row['avg_pain'] = max(0, row['avg_pain'] - (visit * 1.5) + noise)
+            new_row['mobility_score'] = min(100, row['mobility_score'] + (visit * 8) + noise)
+            for col in [c for c in new_row.index if '_rom' in c]:
+                new_row[col] = min(180, new_row[col] + (visit * 5) + noise)
+            all_visits.append(new_row)
+            
+    time_series_df = pd.DataFrame(all_visits)
     os.makedirs('database', exist_ok=True)
     conn = duckdb.connect('database/pipeline.db')
-    
-    # [수정된 부분] 
-    # 기존 테이블이 있으면 지우고 새로 만들거나, 최신 데이터로 덮어씁니다.
-    # 이렇게 하면 UNIQUE 제약 조건 에러 없이 항상 최신 100건이 유지됩니다.
-    conn.execute("CREATE OR REPLACE TABLE raw_msk_data AS SELECT * FROM df")
-    
-    print(f"[{datetime.datetime.now()}] 📥 1단계: Raw 데이터 수집 및 적재 완료")
+    conn.execute("CREATE OR REPLACE TABLE raw_msk_data AS SELECT * FROM time_series_df")
     conn.close()
-
-if __name__ == "__main__":
-    ingest_raw_data()
+    print("✅ 1단계: 시계열 Raw 데이터 적재 완료")
