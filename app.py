@@ -196,10 +196,11 @@ if df is not None:
         fig_t.update_layout(yaxis=dict(title="Mobility"), yaxis2=dict(title="Pain", overlaying="y", side="right"), template="plotly_white")
         st.plotly_chart(fig_t, use_container_width=True)
 
-# --- 운동 처방 섹션 ---
+# --- 운동 처방 섹션 (레이더 차트 기준과 동기화) ---
         st.divider()
-        st.subheader("🧘 AI 맞춤형 운동 처방")
+        st.subheader("AI 맞춤형 운동 처방")
         
+        # 레이더 차트와 동일한 기준 데이터 사용
         guide_db = {
             'cervical': {'name': '목 스트레칭', 'limit': 45, 'desc': '목 정렬 및 거북목 개선'},
             'shoulder': {'name': '어깨 스트레칭', 'limit': 150, 'desc': '굽은 어깨 및 가동성 확보'},
@@ -209,16 +210,22 @@ if df is not None:
             'ankle': {'name': '발목 스트레칭', 'limit': 20, 'desc': '보행 균형 개선'}
         }
 
-        # 1. 관리 필요 부위 확인 (소수점 첫째자리 정밀도 반영)
-        low_parts = [p for p, info in guide_db.items() if round(float(p_data.get(f'{p}_rom', 180)), 1) < info['limit']]
+        # 1. 관리 필요 부위 확인 (레이더 차트와 동일하게 '달성률 70%' 기준 적용)
+        # 각 부위별로 (현재값 / 기준값)이 0.7 미만인 항목을 찾습니다.
+        low_parts = []
+        for p, info in guide_db.items():
+            val = float(p_data.get(f'{p}_rom', 0))
+            achievement_rate = val / info['limit']
+            if achievement_rate < 0.7: # 70% 미만 달성 시 '집중관리'
+                low_parts.append(p)
 
-        # 2. UI 최상단 메시지 결정 (중복 방지를 위해 if-else로 분리)
+        # 2. UI 상단 메시지 결정
         if low_parts:
-            st.warning("⚠️ 현재 가동 범위가 부족한 부위 위주로 편성된 **맞춤 프로그램**입니다.")
-            display_parts = low_parts # 부족한 부위만 표시
+            st.warning(f"⚠️ 현재 가동 범위 달성도가 낮은 **{len(low_parts)}개 부위** 집중 프로그램입니다.")
+            display_parts = low_parts 
         else:
-            st.success("✨ 모든 수치가 정상입니다! 예방 차원의 **전신 관리 프로그램**을 추천합니다.")
-            display_parts = list(guide_db.keys()) # 전체 부위 표시
+            st.success("✨ 모든 관절의 달성도가 70% 이상입니다! 예방 차원의 전신 관리 프로그램을 추천합니다.")
+            display_parts = list(guide_db.keys())
 
         # 3. 카드 레이아웃 출력
         rows = [display_parts[i:i + 3] for i in range(0, len(display_parts), 3)]
@@ -228,17 +235,21 @@ if df is not None:
             for idx, part in enumerate(row):
                 info = guide_db[part]
                 val = round(float(p_data.get(f'{part}_rom', 0)), 1)
+                achievement = (val / info['limit']) * 100
                 
                 with cols[idx]:
-                    if part in low_parts:
+                    # 차트와 동일한 로직: 70% 미만은 빨간색(error), 그 이상은 파란색(info)
+                    if achievement < 70:
                         st.error(f"**{part.upper()} 집중관리**")
-                        status_msg = f"현재: {val}° (기준 미달)"
+                        status_msg = f"달성도: {achievement:.1f}% (위험)"
                     else:
                         st.info(f"**{part.upper()} 유지관리**")
-                        status_msg = f"현재: {val}° (정상)"
+                        status_msg = f"달성도: {achievement:.1f}% (양호)"
                         
                     st.markdown(f"📍 **{info['name']}**")
-                    st.caption(f"{info['desc']}\n\n{status_msg}")
+                    # 소수점 1자리 고정 포맷팅 적용
+                    st.caption(f"{info['desc']}\n\n{status_msg}\n측정값: {val:.1f}° / 기준: {info['limit']}°")
+                    
                     search_url = f"https://www.youtube.com/results?search_query={info['name']}+방법"
                     st.link_button("🎥 가이드 보기", search_url, use_container_width=True)
 
