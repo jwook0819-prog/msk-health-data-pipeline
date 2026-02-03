@@ -1,6 +1,8 @@
 # 🏥 MSK Health Data Pipeline & AI Dashboard
 
 > **근골격계(MSK) 건강 데이터를 수집, 정제하고 AI로 통증을 예측하는 엔드투엔드 데이터 파이프라인 프로젝트입니다.**
+>
+> 배포 주소: https://msk-health-data-pipeline.streamlit.app/
 
 
 
