@@ -55,9 +55,53 @@ def create_pdf(p_id, age, pred, status, radar_bytes):
     pdf.cell(200, 10, txt=f"Age: {age} / AI Pred VAS: {pred} / Result: {status}", ln=True)
     return pdf.output()
 
+# --- 사이드바: 데이터 소스 선택 로직 ---
+st.sidebar.title("📁 데이터 소스 관리")
+
+# 1. 샘플 엑셀 다운로드 (사용자 편의성)
+def get_sample_excel():
+    sample_cols = ['patient_id', 'age', 'avg_pain', 'mobility_score', 
+                   'cervical_rom', 'shoulder_rom', 'trunk_rom', 
+                   'hip_rom', 'knee_rom', 'ankle_rom', 'ingested_at']
+    # 샘플 데이터 1건 생성
+    sample_df = pd.DataFrame([['P_SAMPLE', 45, 3.5, 75.0, 45, 150, 60, 100, 130, 20, '2026-01-01']], columns=sample_cols)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        sample_df.to_excel(writer, index=False)
+    return output.getvalue()
+
+st.sidebar.download_button("📥 엑셀 양식 다운로드", get_sample_excel(), "msk_template.xlsx")
+
+# 2. 파일 업로더
+uploaded_file = st.sidebar.file_uploader("📂 환자 데이터 업로드 (Excel)", type=["xlsx"])
+
+# 3. 데이터 로드 (DB vs Excel 선택)
+df_db = load_data() # 기존 DB 로드 함수 호출
+
+if uploaded_file:
+    try:
+        df_upload = pd.read_excel(uploaded_file)
+        # 날짜 형식 변환 (시계열 그래프용)
+        df_upload['ingested_at'] = pd.to_datetime(df_upload['ingested_at'])
+        
+        # 선택 라디오 버튼
+        source = st.sidebar.radio("사용할 데이터 선택:", ["기존 데이터베이스", "업로드한 엑셀 파일"])
+        
+        if source == "업로드한 엑셀 파일":
+            df = df_upload
+            st.sidebar.success("✅ 업로드된 데이터를 사용 중입니다.")
+        else:
+            df = df_db
+    except Exception as e:
+        st.sidebar.error(f"❌ 파일 읽기 오류: {e}")
+        df = df_db
+else:
+    df = df_db
+
+
+
 # --- 사이드바 디자인 ---
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3774/3774293.png", width=80)
-st.sidebar.title("MSK 데이터 관리")
 
 df = load_data()
 if df is not None:
@@ -65,6 +109,50 @@ if df is not None:
     sel_id = st.sidebar.selectbox("👤 분석 대상 환자 선택", p_list)
     p_data = df[df['patient_id'] == sel_id].iloc[0]
     history = df[df['patient_id'] == sel_id].sort_values('ingested_at')
+
+# --- 사이드바: 데이터 소스 선택 로직 ---
+st.sidebar.title("📁 데이터 소스 관리")
+
+# 1. 샘플 엑셀 다운로드 (사용자 편의성)
+def get_sample_excel():
+    sample_cols = ['patient_id', 'age', 'avg_pain', 'mobility_score', 
+                   'cervical_rom', 'shoulder_rom', 'trunk_rom', 
+                   'hip_rom', 'knee_rom', 'ankle_rom', 'ingested_at']
+    # 샘플 데이터 1건 생성
+    sample_df = pd.DataFrame([['P_SAMPLE', 45, 3.5, 75.0, 45, 150, 60, 100, 130, 20, '2026-01-01']], columns=sample_cols)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        sample_df.to_excel(writer, index=False)
+    return output.getvalue()
+
+st.sidebar.download_button("📥 엑셀 양식 다운로드", get_sample_excel(), "msk_template.xlsx")
+
+# 2. 파일 업로더
+uploaded_file = st.sidebar.file_uploader("📂 환자 데이터 업로드 (Excel)", type=["xlsx"])
+
+# 3. 데이터 로드 (DB vs Excel 선택)
+df_db = load_data() # 기존 DB 로드 함수 호출
+
+if uploaded_file:
+    try:
+        df_upload = pd.read_excel(uploaded_file)
+        # 날짜 형식 변환 (시계열 그래프용)
+        df_upload['ingested_at'] = pd.to_datetime(df_upload['ingested_at'])
+        
+        # 선택 라디오 버튼
+        source = st.sidebar.radio("사용할 데이터 선택:", ["기존 데이터베이스", "업로드한 엑셀 파일"])
+        
+        if source == "업로드한 엑셀 파일":
+            df = df_upload
+            st.sidebar.success("✅ 업로드된 데이터를 사용 중입니다.")
+        else:
+            df = df_db
+    except Exception as e:
+        st.sidebar.error(f"❌ 파일 읽기 오류: {e}")
+        df = df_db
+else:
+    df = df_db
+
 
 # --- 메인 대시보드 ---
 st.title("🏥 근골격계 AI 정밀 분석 시스템")
