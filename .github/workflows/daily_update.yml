@@ -1,0 +1,41 @@
+name: MSK Daily Pipeline Update
+
+on:
+  schedule:
+    # UTC 기준입니다. 한국 시간(KST) 오전 10시는 UTC 01:00입니다.
+    - cron: '0 1 * * *'
+  workflow_dispatch: # 필요할 때 수동으로도 실행 버튼을 누를 수 있게 합니다.
+
+jobs:
+  update_data:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. GitHub에 올라가 있는 코드 가져오기
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. 파이썬 설치
+      - name: Set up Python
+        uses: os-actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # 3. 필요한 라이브러리 설치
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4. 파이프라인 실행 (데이터 생성 + 변환 + 모델 학습)
+      - name: Run Main Pipeline
+        run: python main_pipeline.py
+
+      # 5. 변경된 데이터(DB, 모델)를 다시 GitHub에 저장(Commit & Push)
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot"
+          git add database/pipeline.db models/
+          git commit -m "🤖 자동 업데이트: 신규 환자 데이터 및 모델 갱신 ($(date +'%Y-%m-%d'))" || echo "No changes to commit"
+          git push
