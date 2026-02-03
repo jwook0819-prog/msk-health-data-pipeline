@@ -1,8 +1,23 @@
-import os, datetime
+import os      # <--- 이 줄이 반드시 있어야 합니다!
+import sys
+import datetime
 import pandas as pd
 import numpy as np
 import duckdb
-from scripts.generate_data import generate_msk_data
+
+# [수정 포인트] 현재 파일의 부모 폴더(프로젝트 루트)를 경로에 강제로 추가
+current_file_path = os.path.abspath(__file__) # 현재 파일의 절대 경로
+project_root = os.path.dirname(os.path.dirname(current_file_path)) # scripts의 상위 폴더
+
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+# 이제 'scripts'를 인식할 수 있게 됩니다.
+try:
+    from scripts.generate_data import generate_msk_data
+except ImportError:
+    # 만약 scripts 폴더 내부에서 직접 실행할 경우를 대비
+    from generate_data import generate_msk_data
 
 def ingest_raw_data():
     base_df = generate_msk_data(100)
