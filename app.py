@@ -107,7 +107,7 @@ if df is None or df.empty:
     st.stop()
 
 # 4. 사이드바: 환자 선택
-st.sidebar.title("👤 환자 관리 시스템")
+st.sidebar.title("환자 관리 시스템")
 patient_list = df['patient_id'].tolist()
 selected_id = st.sidebar.selectbox("환자 ID를 선택하세요", patient_list)
 p_data = df[df['patient_id'] == selected_id].iloc[0]
@@ -178,7 +178,7 @@ else:
     pass
 
 # 5. 메인 화면 헤더
-st.title("🦴 근골격계 데이터 분석 리포트")
+st.title("근골격계 데이터 분석 리포트")
 st.markdown(f"**데이터 업데이트 시간:** `{p_data['ingested_at']}`")
 st.divider()
 
@@ -276,7 +276,7 @@ with tab2:
     l_col, r_col = st.columns([1, 1.2])
     
     with l_col:
-        st.markdown("#### **📍 부위별 가동 범위(ROM)**")
+        st.markdown("#### **부위별 가동 범위(ROM)**")
         joints = ['cervical', 'shoulder', 'trunk', 'hip', 'knee', 'ankle']
         for j in joints:
             status = p_data[f'{j}_status']
