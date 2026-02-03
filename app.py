@@ -59,7 +59,7 @@ st.sidebar.title("데이터 관리")
 if df is not None:
     # [1순위: 환자 선택]
     p_list = sorted(df['patient_id'].unique())
-    st.sidebar.subheader("환자 선택")
+    st.sidebar.subheader("👤 환자 선택") # 여기서 글씨 크기가 결정됩니다.
     sel_id = st.sidebar.selectbox( p_list)
     p_data = df[df['patient_id'] == sel_id].iloc[0]
     history = df[df['patient_id'] == sel_id].sort_values('ingested_at')
