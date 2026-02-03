@@ -7,24 +7,27 @@ import joblib
 import os
 import subprocess
 import streamlit as st
+import os
+import subprocess
+import streamlit as st
+import sys
 
-# --- 서버 환경 자동 설정 로직 ---
-# 1. database 폴더가 없으면 생성
-if not os.path.exists('database'):
-    os.makedirs('database')
+# 서버 환경에서 실행 경로를 고정
+current_dir = os.path.dirname(os.path.abspath(__file__))
+db_path = os.path.join(current_dir, 'database', 'pipeline.db')
 
-# 2. DB 파일이 없으면 파이프라인 강제 실행
-if not os.path.exists('database/pipeline.db'):
-    st.info("🌐 서버에 데이터가 없습니다. 파이프라인을 가동하여 데이터를 생성 중입니다... (약 10초 소요)")
+if not os.path.exists(db_path):
+    st.info("🌐 서버 데이터가 감지되지 않아 파이프라인을 자동 가동합니다...")
     try:
-        # main_pipeline.py를 실행하여 DB와 Model 생성
-        subprocess.run(["python", "main_pipeline.py"], check=True)
-        st.success("✅ 데이터 생성 및 AI 모델 학습이 완료되었습니다!")
-        st.rerun() # 데이터가 생겼으니 페이지를 다시 읽음
+        # 현재 실행 중인 파이프라인의 전체 경로 확보
+        pipeline_script = os.path.join(current_dir, "main_pipeline.py")
+        # 서버의 python 실행기를 사용하여 실행
+        subprocess.run([sys.executable, pipeline_script], check=True)
+        st.success("✅ 데이터 생성 완료! 페이지를 새로고침합니다.")
+        st.rerun()
     except Exception as e:
-        st.error(f"❌ 파이프라인 실행 중 오류 발생: {e}")
+        st.error(f"❌ 파이프라인 가동 실패: {e}")
         st.stop()
-# -----------------------------
 
 # 서버에 DB 파일이 없으면 자동으로 파이프라인 실행
 if not os.path.exists('database/pipeline.db'):
@@ -166,3 +169,10 @@ with tab2:
         fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 180])),
                                 title="신체 밸런스 맵", showlegend=False)
         st.plotly_chart(fig_radar, use_container_width=True)
+
+@st.cache_resource  # 1. @는 맨 앞에 붙어야 함
+def load_trained_model():
+    # 2. 함수 안의 내용은 무조건 4칸(또는 Tab 1번) 들여쓰기
+    model = joblib.load('models/pain_predictor.pkl')
+    features = joblib.load('models/feature_names.pkl')
+    return model, features
