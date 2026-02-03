@@ -4,6 +4,34 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import joblib
+import os
+import subprocess
+import streamlit as st
+
+# --- 서버 환경 자동 설정 로직 ---
+# 1. database 폴더가 없으면 생성
+if not os.path.exists('database'):
+    os.makedirs('database')
+
+# 2. DB 파일이 없으면 파이프라인 강제 실행
+if not os.path.exists('database/pipeline.db'):
+    st.info("🌐 서버에 데이터가 없습니다. 파이프라인을 가동하여 데이터를 생성 중입니다... (약 10초 소요)")
+    try:
+        # main_pipeline.py를 실행하여 DB와 Model 생성
+        subprocess.run(["python", "main_pipeline.py"], check=True)
+        st.success("✅ 데이터 생성 및 AI 모델 학습이 완료되었습니다!")
+        st.rerun() # 데이터가 생겼으니 페이지를 다시 읽음
+    except Exception as e:
+        st.error(f"❌ 파이프라인 실행 중 오류 발생: {e}")
+        st.stop()
+# -----------------------------
+
+# 서버에 DB 파일이 없으면 자동으로 파이프라인 실행
+if not os.path.exists('database/pipeline.db'):
+    st.info("🌐 서버에 데이터가 없습니다. 파이프라인을 가동하여 데이터를 생성합니다...")
+    # 파이프라인 실행 스크립트 호출
+    subprocess.run(["python", "main_pipeline.py"])
+    st.success("✅ 데이터 생성 및 모델 학습 완료!")
 
 # 1. 페이지 설정
 st.set_page_config(page_title="근골격계 분석 대시보드", layout="wide")
