@@ -59,8 +59,15 @@ st.sidebar.title("데이터 관리")
 if df is not None:
     # [1순위: 환자 선택]
     p_list = sorted(df['patient_id'].unique())
-    st.sidebar.subheader("👤 환자 선택") # 여기서 글씨 크기가 결정됩니다.
-    sel_id = st.sidebar.selectbox( p_list)
+# 1. 서브헤더로 큰 글씨 출력
+    st.sidebar.subheader("👤 환자 선택") 
+
+# 2. 실제 셀렉트박스 (라벨은 빈 문자열로 처리하여 에러 방지)
+    sel_id = st.sidebar.selectbox(
+    "", # 라벨을 비워둠
+    options=p_list,
+    key="patient_selector" # 혹시 모를 충돌 방지를 위해 고유 키 부여
+)
     p_data = df[df['patient_id'] == sel_id].iloc[0]
     history = df[df['patient_id'] == sel_id].sort_values('ingested_at')
 
