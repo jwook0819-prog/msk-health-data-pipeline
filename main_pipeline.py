@@ -3,6 +3,20 @@ import logging
 import datetime
 from scripts.pipeline_ingest import ingest_raw_data
 from scripts.pipeline_transform import transform_silver_to_gold
+from scripts.train_model import train_pain_predictor
+
+def run_total_pipeline():
+    # ... 이전 단계 생략 ...
+    try:
+        ingest_raw_data()
+        transform_silver_to_gold()
+        
+        # Step 3: ML 모델 학습 추가
+        train_pain_predictor()
+        
+        print("✨ ML 포함 모든 파이프라인 성공!")
+    except Exception as e:
+        print(f"❌ 에러: {e}")
 
 # 로깅 설정
 logging.basicConfig(
