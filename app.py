@@ -126,12 +126,58 @@ if df is not None:
         fig_t.update_layout(yaxis=dict(title="Mobility"), yaxis2=dict(title="Pain", overlaying="y", side="right"), template="plotly_white")
         st.plotly_chart(fig_t, use_container_width=True)
 
+        # ---------------------------------------------------------
+        # 여기서부터 추가: 6개 관절 AI 맞춤 운동 처방 섹션
+       # ---------------------------------------------------------
+        st.divider()
+        st.subheader("🧘 AI 맞춤형 운동 처방 (6대 관절)")
+
+# 1. 6개 관절 가이드 데이터베이스 정의
+        guide_db = {
+            'cervical': {'name': '목 스트레칭', 'limit': 45, 'desc': '목 정렬 및 거북목 개선'},
+            'shoulder': {'name': '어깨 스트레칭', 'limit': 150, 'desc': '굽은 어깨 및 가동성 확보'},
+            'trunk': {'name': '몸통 스트레칭', 'limit': 60, 'desc': '척추 기립근 및 코어 강화'},
+            'hip': {'name': '골반 스트레칭', 'limit': 100, 'desc': '골반 가동성 및 유연성 증대'},
+            'knee': {'name': '무릎 스트레칭', 'limit': 130, 'desc': '무릎 관절 안정성 강화'},
+            'ankle': {'name': '발목 스트레칭', 'limit': 20, 'desc': '보행 균형 및 발목 유연성'}
+            }
+
+# 2. 기준치 미달인 부위 추출
+        low_parts = [p for p, info in guide_db.items() if p_data.get(f'{p}_rom', 180) < info['limit']]
+
+    if low_parts:
+    # 화면에 3개씩 배치하기 위해 행(row)을 나눔
+        rows = [low_parts[i:i + 3] for i in range(0, len(low_parts), 3)]
+# ... (이전 코드 생략) ...
+
+if low_parts:
+    # 1. 화면에 3개씩 배치하기 위해 행(row)을 나눔
+    rows = [low_parts[i:i + 3] for i in range(0, len(low_parts), 3)]
+    
+    for row in rows:
+        cols = st.columns(3) # <--- 여기서부터 4칸 들여쓰기 (Tab 한 번)
+        for idx, part in enumerate(row): # <--- 여기도 들여쓰기
+            info = guide_db[part]
+            with cols[idx]: # <--- 여기도 들여쓰기
+                # 시각적으로 강조된 카드 형태
+                st.info(f"**{part.upper()} 관리 대상**")
+                st.markdown(f"**{info['name']}**")
+                st.caption(info['desc'])
+                # 유튜브 검색 링크
+                search_url = f"https://www.youtube.com/results?search_query={info['name']}+방법"
+                st.link_button("🎥 영상 가이드 보기", search_url, use_container_width=True)
+else:
+    st.success("✨ 모든 관절 가동 범위가 정상입니다! 현재의 건강한 상태를 유지하세요.")
+
+# ... (이후 PDF 다운로드 버튼 코드) ...
+
         # [2순위: PDF 발행 버튼 - 환자 선택 바로 아래에 배치하기 위해 위치 조정]
-        st.sidebar.divider()
-        st.sidebar.subheader("📄 결과물 내보내기")
-        radar_bytes = fig_r.to_image(format="png")
-        final_pdf = create_pdf(sel_id, p_data['age'], pred, "Care Needed" if (isinstance(pred, float) and pred > 5) else "Good", radar_bytes)
-        st.sidebar.download_button("📂 PDF 리포트 발행", data=bytes(final_pdf), file_name=f"MSK_Report_{sel_id}.pdf", use_container_width=True)
+    st.sidebar.divider()
+    st.sidebar.subheader("📄 결과물 내보내기")
+    radar_bytes = fig_r.to_image(format="png")
+    final_pdf = create_pdf(sel_id, p_data['age'], pred, "Care Needed" if (isinstance(pred, float) and pred > 5) else "Good", radar_bytes)
+    st.sidebar.download_button("📂 PDF 리포트 발행", data=bytes(final_pdf), file_name=f"MSK_Report_{sel_id}.pdf", use_container_width=True)
+        
 
 # --- 5. 사이드바 하단 (엑셀 업로드 섹션) ---
 # 빈 공간을 여러 개 넣어 아래로 밀어냅니다.
