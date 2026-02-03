@@ -19,7 +19,7 @@ def create_pdf(patient_id, age, prediction, status):
     pdf.add_page()
     
     # 폰트 파일 경로 확인 (나눔고딕 파일이 app.py와 같은 위치에 있어야 함)
-    font_path = "NanumGothic.ttf"
+    font_path = "NanumGothic-Regular.ttf"
     
     if os.path.exists(font_path):
         try:
@@ -30,7 +30,7 @@ def create_pdf(patient_id, age, prediction, status):
             st.error(f"폰트 등록 오류: {e}")
             pdf.set_font('Arial', 'B', 16)
     else:
-        st.error("⚠️ NanumGothic.ttf 파일을 찾을 수 없습니다. GitHub에 업로드했는지 확인하세요.")
+        st.error("⚠️ NanumGothic-Regular.ttf 파일을 찾을 수 없습니다. GitHub에 업로드했는지 확인하세요.")
         pdf.set_font('Arial', 'B', 16)
 
     # 텍스트 출력 시 유니코드 에러 방지
