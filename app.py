@@ -120,9 +120,10 @@ if df is not None:
         fig_t.update_layout(yaxis=dict(title="Mobility"), yaxis2=dict(title="Pain", overlaying="y", side="right"), template="plotly_white")
         st.plotly_chart(fig_t, use_container_width=True)
 
-        # 운동 처방 섹션
+# --- 운동 처방 섹션  ---
         st.divider()
-        st.subheader("🧘 AI 맞춤형 운동 처방 (6대 관절)")
+        st.subheader("AI 맞춤형 운동 처방")
+        
         guide_db = {
             'cervical': {'name': '목 스트레칭', 'limit': 45, 'desc': '목 정렬 및 거북목 개선'},
             'shoulder': {'name': '어깨 스트레칭', 'limit': 150, 'desc': '굽은 어깨 및 가동성 확보'},
@@ -132,20 +133,34 @@ if df is not None:
             'ankle': {'name': '발목 스트레칭', 'limit': 20, 'desc': '보행 균형 개선'}
         }
 
+        # 1. 관리 필요 부위 확인
         low_parts = [p for p, info in guide_db.items() if p_data.get(f'{p}_rom', 180) < info['limit']]
 
+        # 2. UI 출력 결정 (관리 부위가 있으면 그것만, 없으면 전체 리스트 권장)
+        display_parts = low_parts if low_parts else list(guide_db.keys())
+        
         if low_parts:
-            rows = [low_parts[i:i + 3] for i in range(0, len(low_parts), 3)]
-            for row in rows:
-                cols = st.columns(3)
-                for idx, part in enumerate(row):
-                    info = guide_db[part]
-                    with cols[idx]:
-                        st.info(f"**{part.upper()} 관리**")
-                        st.markdown(f"**{info['name']}**")
-                        st.caption(info['desc'])
-                        search_url = f"https://www.youtube.com/results?search_query={info['name']}+방법"
-                        st.link_button("🎥 가이드", search_url, use_container_width=True)
+            st.warning("⚠️ 현재 가동 범위가 부족한 부위 위주로 편성된 맞춤 프로그램입니다.")
+        else:
+            st.success("✨ 모든 수치가 정상입니다! 예방 차원의 전신 관리 프로그램을 추천합니다.")
+
+        # 3. 카드 레이아웃 출력
+        rows = [display_parts[i:i + 3] for i in range(0, len(display_parts), 3)]
+        for row in rows:
+            cols = st.columns(3)
+            for idx, part in enumerate(row):
+                info = guide_db[part]
+                with cols[idx]:
+                    # 관리 부위인 경우 빨간색 테두리 효과(st.error 대신 st.info 활용)
+                    if part in low_parts:
+                        st.error(f"**{part.upper()} 집중관리**")
+                    else:
+                        st.info(f"**{part.upper()} 유지관리**")
+                        
+                    st.markdown(f"**{info['name']}**")
+                    st.caption(info['desc'])
+                    search_url = f"https://www.youtube.com/results?search_query={info['name']}+방법"
+                    st.link_button("🎥 가이드 보기", search_url, use_container_width=True)
         else:
             st.success("✨ 모든 관절 상태가 양호합니다!")
 
