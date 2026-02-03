@@ -11,6 +11,36 @@ import os
 import subprocess
 import streamlit as st
 import sys
+from fpdf import FPDF
+
+def create_pdf(patient_id, age, prediction, status):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # 1. 한글 폰트 등록 (파일이 프로젝트 폴더에 있어야 함)
+    # 폰트 파일명이 'NanumGothic.ttf'라고 가정
+    try:
+        pdf.add_font('Nanum', '', 'NanumGothic.ttf')
+        pdf.set_font('Nanum', '', 16)
+    except:
+        pdf.set_font('Arial', 'B', 16) # 폰트 없을 시 영문으로 대체
+
+    # 2. 내용 구성
+    pdf.cell(200, 10, txt="[근골격계 건강 분석 리포트]", ln=True, align='C')
+    pdf.ln(10)
+    
+    pdf.set_font('Nanum', '', 12) if 'Nanum' in pdf.fonts else pdf.set_font('Arial', '', 12)
+    pdf.cell(200, 10, txt=f"환자 번호: {patient_id}", ln=True)
+    pdf.cell(200, 10, txt=f"연령: {age}세", ln=True)
+    pdf.ln(5)
+    pdf.cell(200, 10, txt=f"AI 예측 통증 지수 (VAS): {prediction}", ln=True)
+    pdf.cell(200, 10, txt=f"종합 소견: {status}", ln=True)
+    
+    pdf.ln(20)
+    pdf.set_font('Nanum', '', 10) if 'Nanum' in pdf.fonts else pdf.set_font('Arial', '', 10)
+    pdf.cell(200, 10, txt="* 본 리포트는 참고용이며 전문의의 진단을 대체할 수 없습니다.", ln=True)
+
+    return pdf.output()
 
 # 서버 환경에서 실행 경로를 고정
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -76,30 +106,70 @@ patient_list = df['patient_id'].tolist()
 selected_id = st.sidebar.selectbox("환자 ID를 선택하세요", patient_list)
 p_data = df[df['patient_id'] == selected_id].iloc[0]
 
+import io
+
+# --- 샘플 양식 생성 함수 ---
+def get_sample_excel():
+    # 실제 학습에 사용되는 주요 컬럼들 정의
+    sample_cols = [
+        'patient_id', 'age', 'gender', 'height', 'weight',
+        'forward_head_angle', 'grip_strength', 'pelvic_tilt',
+        'cervical_rom', 'shoulder_rom', 'trunk_rom', 
+        'hip_rom', 'knee_rom', 'ankle_rom', 'avg_pain'
+    ]
+    # 예시 데이터 1줄 생성
+    sample_data = [[
+        'SAMPLE_01', 45, 'M', 175.5, 72.0, 
+        15.5, 38.2, 12.0, 
+        45, 150, 60, 100, 130, 20, 3.5
+    ]]
+    sample_df = pd.DataFrame(sample_data, columns=sample_cols)
+    
+    # 메모리 상에서 엑셀 파일 생성
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        sample_df.to_excel(writer, index=False, sheet_name='Sheet1')
+    return output.getvalue()
+
 # --- 사이드바: 파일 업로드 섹션 ---
 st.sidebar.divider()
 st.sidebar.subheader("📂 데이터 외부 입력")
+
+# 1. 양식 다운로드 버튼 (미리 만들어둔 함수 호출)
+st.sidebar.download_button(
+    label="📥 샘플 엑셀 양식 다운로드",
+    data=get_sample_excel(),
+    file_name="msk_sample_form.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+# 2. 파일 업로드 위젯
 uploaded_file = st.sidebar.file_uploader("환자 엑셀 파일을 선택하세요", type=["xlsx", "csv"])
 
-# 파일이 업로드되었을 때의 로직
+# 3. 파일 처리 로직 (이 부분이 핵심입니다)
 if uploaded_file is not None:
     try:
-        # 파일 확장자에 따라 읽기
+        # 파일 확장자에 따라 데이터 읽기
         if uploaded_file.name.endswith('xlsx'):
             ext_df = pd.read_excel(uploaded_file, engine='openpyxl')
         else:
             ext_df = pd.read_csv(uploaded_file)
             
-        st.sidebar.success("✅ 외부 데이터 로드 완료!")
+        st.sidebar.success("✅ 파일 로드 성공!")
+
+        # 데이터 소스 선택 (업로드 시에만 나타남)
+        mode = st.sidebar.radio("분석 데이터 소스 선택", ["기본 DB", "업로드 파일"])
         
-        # 분석 대상 선택 (기존 DB 데이터 vs 업로드 데이터)
-        data_source = st.sidebar.radio("분석 데이터 선택", ["DB 데이터", "업로드 데이터"])
-        
-        if data_source == "업로드 데이터":
-            df = ext_df # 메인 데이터프레임을 업로드된 데이터로 교체
-            st.sidebar.warning("⚠️ 업로드된 데이터로 분석을 진행합니다.")
+        if mode == "업로드 파일":
+            df = ext_df  # 메인 데이터프레임을 업로드된 데이터로 교체
+            st.sidebar.warning("⚠️ 현재 업로드된 데이터를 분석 중입니다.")
+            
     except Exception as e:
-        st.sidebar.error(f"파일을 읽는 중 오류가 발생했습니다: {e}")
+        st.sidebar.error(f"❌ 파일 읽기 오류: {e}")
+else:
+    # 파일을 올리지 않았을 때는 기본적으로 DB 데이터를 사용하도록 설정
+    # (이미 위쪽에서 df = conn.execute(...).df() 처리가 되어 있어야 함)
+    pass
 
 # 5. 메인 화면 헤더
 st.title("🦴 근골격계 데이터 분석 리포트")
@@ -165,8 +235,28 @@ with tab2:
     else:
         # 모델 파일이 없거나 에러가 났을 때 메시지
         st.error("❌ AI 모델을 로드할 수 없습니다. 'python main_pipeline.py'를 실행하여 모델을 먼저 학습시켜 주세요.")
-
+  
     st.divider()
+    st.subheader("📄 분석 리포트 내보내기")
+    
+    # 에러 방지용: age 값이 시리즈인 경우와 숫자인 경우 모두 대응
+    raw_age = p_data['age']
+    clean_age = raw_age.values[0] if hasattr(raw_age, 'values') else raw_age
+    
+    # PDF 생성 데이터 준비
+    pdf_data = create_pdf(
+        selected_id, 
+        clean_age, # 안전하게 변환된 나이 값 전달
+        predicted_vas, 
+        "관리가 필요한 상태입니다." if predicted_vas > 4 else "양호한 상태입니다."
+    )
+    
+    st.download_button(
+        label="📥 PDF 리포트 다운로드",
+        data=bytes(pdf_data),
+        file_name=f"Report_{selected_id}.pdf",
+        mime="application/pdf"
+    )
 
     # 3. 기본 신체 지표 (기존 내용)
     col_metrics = st.columns(3)
