@@ -99,10 +99,10 @@ if df is not None:
                 else: st.success("✅ 지표가 안정적으로 유지되고 있습니다.")
         except: pred = "N/A"
 
-# --- 레이더 차트 및 상세 카드 섹션 (완전 교체용) ---
+# --- 레이더 차트 및 상세 카드 섹션 (최종 수정본) ---
         cv_l, cv_r = st.columns([1, 1])
 
-        # 1. 관절별 임상 정상 기준치 정의 (각 관절의 100% 지점)
+        # 1. 관절별 임상 정상 기준치 정의
         joints_map = {
             'cervical': {'name': 'Cervical', 'limit': 45},
             'shoulder': {'name': 'Shoulder', 'limit': 150},
@@ -116,19 +116,19 @@ if df is not None:
         with cv_l:
             st.write("#### 🎯 신체 밸런스 맵 (정상치 대비 달성도)")
             
-            # 실제 각도는 소수점 1자리로 반올림하여 준비
+            # [수정] 데이터 추출 단계에서 즉시 반올림 및 형변환 수행
             actual_vals = [round(float(p_data[f'{j}_rom']), 1) for j in joints]
-            # 차트에 그릴 때는 '실제값 / 기준값' 비율(%)로 환산 (최대 110%로 제한)
-            percent_vals = [min((v / joints_map[j]['limit']) * 100, 110) for v, j in zip(actual_vals, joints)]
+            # [수정] 비율 계산 (정상치 대비 %)
+            percent_vals = [round(min((v / joints_map[j]['limit']) * 100, 110), 1) for v, j in zip(actual_vals, joints)]
             
-            # 평균 달성률에 따라 색상 결정 (70% 미만 시 경고색)
+            # 평균 달성률 계산
             avg_score = sum(percent_vals) / len(percent_vals)
             theme_color = '#ef5350' if avg_score < 70 else '#007bff'
             fill_color = 'rgba(239, 83, 80, 0.3)' if avg_score < 70 else 'rgba(0, 123, 255, 0.3)'
 
             fig_r = go.Figure()
 
-            # 가이드라인: 정상 기준 100% 라인 (점선)
+            # 가이드라인: 정상 기준 100% 점선
             fig_r.add_trace(go.Scatterpolar(
                 r=[100] * 6,
                 theta=[info['name'] for info in joints_map.values()],
@@ -138,7 +138,7 @@ if df is not None:
                 hoverinfo='skip'
             ))
 
-            # 환자 데이터: 비율(%) 기준으로 시각화
+            # 환자 데이터 시각화
             fig_r.add_trace(go.Scatterpolar(
                 r=percent_vals,
                 theta=[info['name'] for info in joints_map.values()],
@@ -146,7 +146,7 @@ if df is not None:
                 name='현재 달성도 (%)',
                 fillcolor=fill_color,
                 line=dict(color=theme_color, width=3),
-                customdata=actual_vals, # 실제 각도 데이터를 숨겨둠
+                customdata=actual_vals,
                 hovertemplate='<b>%{theta}</b><br>달성도: %{r:.1f}%<br>실제각도: %{customdata}°<extra></extra>'
             ))
 
@@ -154,7 +154,7 @@ if df is not None:
                 polar=dict(
                     radialaxis=dict(
                         visible=True, 
-                        range=[0, 115], # 시각적 안정감을 위해 115%까지 표시
+                        range=[0, 115], 
                         tickvals=[0, 50, 100],
                         ticktext=['0%', '50%', '100%'],
                         gridcolor="#eee"
@@ -172,18 +172,19 @@ if df is not None:
             st.write("#### 📍 부위별 상세 상태")
             for j in joints:
                 info = joints_map[j]
-                val = round(float(p_data[f'{j}_rom']), 1) # 여기서 소수점 1자리 고정
+                # [수정] 카드 출력 전 다시 한번 확실하게 반올림 처리
+                val = round(float(p_data[f'{j}_rom']), 1)
                 status = p_data.get(f'{j}_status', 'N/A')
-                # 정상치 대비 현재 비율 계산
-                percent = (val / info['limit']) * 100
                 
-                # 상태별 카드 색상 (비율이 70% 미만이면 빨간색)
+                # 정상치 대비 비율 계산
+                percent = (val / info['limit']) * 100
                 card_color = "#ef5350" if percent < 70 else "#66bb6a"
                 
+                # [수정] HTML 문자열 포맷팅 시 소수점 1자리로 명시적 포맷팅 (: .1f)
                 st.markdown(f"""
                     <div style="background-color: {card_color}; padding: 12px 20px; border-radius: 8px; color: white; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold;">{info['name']}</span>
-                        <span><b>{val}°</b> / {info['limit']}° ({status})</span>
+                        <span><b>{val:.1f}°</b> / {info['limit']}° ({status})</span>
                     </div>
                 """, unsafe_allow_html=True)
 
