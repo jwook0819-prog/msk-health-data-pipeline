@@ -14,32 +14,38 @@ import sys
 from fpdf import FPDF
 
 def create_pdf(patient_id, age, prediction, status):
+    # 'latin-1' 에러를 방지하기 위해 유니코드 사용 설정
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. 한글 폰트 등록 (파일이 프로젝트 폴더에 있어야 함)
-    # 폰트 파일명이 'NanumGothic.ttf'라고 가정
-    try:
-        pdf.add_font('Nanum', '', 'NanumGothic.ttf')
-        pdf.set_font('Nanum', '', 16)
-    except:
-        pdf.set_font('Arial', 'B', 16) # 폰트 없을 시 영문으로 대체
+    # 폰트 파일 경로 확인 (나눔고딕 파일이 app.py와 같은 위치에 있어야 함)
+    font_path = "NanumGothic.ttf"
+    
+    if os.path.exists(font_path):
+        try:
+            # 폰트 등록 및 설정
+            pdf.add_font('Nanum', '', font_path)
+            pdf.set_font('Nanum', '', 16)
+        except Exception as e:
+            st.error(f"폰트 등록 오류: {e}")
+            pdf.set_font('Arial', 'B', 16)
+    else:
+        st.error("⚠️ NanumGothic.ttf 파일을 찾을 수 없습니다. GitHub에 업로드했는지 확인하세요.")
+        pdf.set_font('Arial', 'B', 16)
 
-    # 2. 내용 구성
+    # 텍스트 출력 시 유니코드 에러 방지
     pdf.cell(200, 10, txt="[근골격계 건강 분석 리포트]", ln=True, align='C')
     pdf.ln(10)
     
-    pdf.set_font('Nanum', '', 12) if 'Nanum' in pdf.fonts else pdf.set_font('Arial', '', 12)
+    # 폰트가 정상적으로 등록되었다면 한글 출력
+    pdf.set_font('Nanum', '', 12)
     pdf.cell(200, 10, txt=f"환자 번호: {patient_id}", ln=True)
     pdf.cell(200, 10, txt=f"연령: {age}세", ln=True)
     pdf.ln(5)
     pdf.cell(200, 10, txt=f"AI 예측 통증 지수 (VAS): {prediction}", ln=True)
     pdf.cell(200, 10, txt=f"종합 소견: {status}", ln=True)
     
-    pdf.ln(20)
-    pdf.set_font('Nanum', '', 10) if 'Nanum' in pdf.fonts else pdf.set_font('Arial', '', 10)
-    pdf.cell(200, 10, txt="* 본 리포트는 참고용이며 전문의의 진단을 대체할 수 없습니다.", ln=True)
-
+    # latin-1 대신 유니코드 바이트로 반환
     return pdf.output()
 
 # 서버 환경에서 실행 경로를 고정
@@ -133,7 +139,7 @@ def get_sample_excel():
 
 # --- 사이드바: 파일 업로드 섹션 ---
 st.sidebar.divider()
-st.sidebar.subheader("📂 데이터 외부 입력")
+st.sidebar.subheader("📂 환자 데이터 업로드")
 
 # 1. 양식 다운로드 버튼 (미리 만들어둔 함수 호출)
 st.sidebar.download_button(
