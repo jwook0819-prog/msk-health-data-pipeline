@@ -80,178 +80,94 @@ if df is not None:
         m4.metric("분석 환자 수", f"{len(p_list)}명")
         st.plotly_chart(px.scatter(df, x="mobility_score", y="avg_pain", color="pain_status" if 'pain_status' in df.columns else None, template="plotly_white"), use_container_width=True)
 
-    with tab2:
-        c1, c2 = st.columns(2)
-        c1.markdown(f"**환자 번호:** `{sel_id}` | **현재 연령:** `{p_data['age']}세`")
-        c2.markdown(f"**최근 측정일:** `{p_data['ingested_at'].strftime('%Y-%m-%d')}`")
-        st.markdown("---")
-
-        # AI 진단
-        try:
-            model = joblib.load('models/pain_predictor.pkl')
-            feats = joblib.load('models/feature_names.pkl')
-            pred = round(model.predict(pd.DataFrame([p_data[feats]]))[0], 1)
-            cp1, cp2 = st.columns([1, 2])
-            cp1.metric("🤖 AI 예측 VAS", f"{pred} / 10")
-            with cp2:
-                diff = pred - p_data['avg_pain']
-                if diff > 1.2: st.warning("⚠️ 예측치가 실제보다 높습니다. 관리 주의.")
-                else: st.success("✅ 지표가 안정적으로 유지되고 있습니다.")
-        except: pred = "N/A"
-
-# --- 레이더 차트 및 상세 카드 섹션 (최종 수정본) ---
-        cv_l, cv_r = st.columns([1, 1])
-
-        # 1. 관절별 임상 정상 기준치 정의
-        joints_map = {
-            'cervical': {'name': 'Cervical', 'limit': 45},
-            'shoulder': {'name': 'Shoulder', 'limit': 150},
-            'trunk': {'name': 'Trunk', 'limit': 60},
-            'hip': {'name': 'Hip', 'limit': 100},
-            'knee': {'name': 'Knee', 'limit': 130},
-            'ankle': {'name': 'Ankle', 'limit': 20}
-        }
-        joints = list(joints_map.keys())
-
-        with cv_l:
-            st.write("#### 🎯 신체 밸런스 맵 (정상치 대비 달성도)")
-            
-            # [수정] 데이터 추출 단계에서 즉시 반올림 및 형변환 수행
-            actual_vals = [round(float(p_data[f'{j}_rom']), 1) for j in joints]
-            # [수정] 비율 계산 (정상치 대비 %)
-            percent_vals = [round(min((v / joints_map[j]['limit']) * 100, 110), 1) for v, j in zip(actual_vals, joints)]
-            
-            # 평균 달성률 계산
-            avg_score = sum(percent_vals) / len(percent_vals)
-            theme_color = '#ef5350' if avg_score < 70 else '#007bff'
-            fill_color = 'rgba(239, 83, 80, 0.3)' if avg_score < 70 else 'rgba(0, 123, 255, 0.3)'
-
-            fig_r = go.Figure()
-
-            # 가이드라인: 정상 기준 100% 점선
-            fig_r.add_trace(go.Scatterpolar(
-                r=[100] * 6,
-                theta=[info['name'] for info in joints_map.values()],
-                fill='none',
-                name='정상 기준 (100%)',
-                line=dict(color='rgba(150, 150, 150, 0.5)', dash='dash', width=2),
-                hoverinfo='skip'
-            ))
-
-            # 환자 데이터 시각화
-            fig_r.add_trace(go.Scatterpolar(
-                r=percent_vals,
-                theta=[info['name'] for info in joints_map.values()],
-                fill='toself',
-                name='현재 달성도 (%)',
-                fillcolor=fill_color,
-                line=dict(color=theme_color, width=3),
-                customdata=actual_vals,
-                hovertemplate='<b>%{theta}</b><br>달성도: %{r:.1f}%<br>실제각도: %{customdata}°<extra></extra>'
-            ))
-
-            fig_r.update_layout(
-                polar=dict(
-                    radialaxis=dict(
-                        visible=True, 
-                        range=[0, 115], 
-                        tickvals=[0, 50, 100],
-                        ticktext=['0%', '50%', '100%'],
-                        gridcolor="#eee"
-                    ),
-                    bgcolor="white"
-                ),
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=1.1, xanchor="center", x=0.5),
-                margin=dict(t=80, b=40, l=60, r=60),
-                height=450
-            )
-            st.plotly_chart(fig_r, use_container_width=True)
-
-        with cv_r:
-            st.write("#### 📍 부위별 상세 상태")
-            for j in joints:
-                info = joints_map[j]
-                # [수정] 카드 출력 전 다시 한번 확실하게 반올림 처리
-                val = round(float(p_data[f'{j}_rom']), 1)
-                status = p_data.get(f'{j}_status', 'N/A')
-                
-                # 정상치 대비 비율 계산
-                percent = (val / info['limit']) * 100
-                card_color = "#ef5350" if percent < 70 else "#66bb6a"
-                
-                # [수정] HTML 문자열 포맷팅 시 소수점 1자리로 명시적 포맷팅 (: .1f)
-                st.markdown(f"""
-                    <div style="background-color: {card_color}; padding: 12px 20px; border-radius: 8px; color: white; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: bold;">{info['name']}</span>
-                        <span><b>{val:.1f}°</b> / {info['limit']}° ({status})</span>
-                    </div>
-                """, unsafe_allow_html=True)
-
-        # 시계열 추세
-        st.write("#### 📈 Recovery Roadmap")
-        fig_t = go.Figure()
-        fig_t.add_trace(go.Bar(x=history['ingested_at'], y=history['mobility_score'], name="가동성", marker_color='#E3F2FD'))
-        fig_t.add_trace(go.Scatter(x=history['ingested_at'], y=history['avg_pain'], name="통증", yaxis="y2", line=dict(color='#ef5350', width=4)))
-        fig_t.update_layout(yaxis=dict(title="Mobility"), yaxis2=dict(title="Pain", overlaying="y", side="right"), template="plotly_white")
-        st.plotly_chart(fig_t, use_container_width=True)
-
-# --- 운동 처방 섹션 (레이더 차트 기준과 동기화) ---
-        st.divider()
-        st.subheader("AI 맞춤형 운동 처방")
+ with tab2:
+    # 1. 상단 요약 바 (AI 진단 결과)
+    st.markdown("#### 🩺 AI 종합 판독 결과")
+    try:
+        model = joblib.load('models/pain_predictor.pkl')
+        feats = joblib.load('models/feature_names.pkl')
+        pred = round(float(model.predict(pd.DataFrame([p_data[feats]]))[0]), 1)
         
-        # 레이더 차트와 동일한 기준 데이터 사용
-        guide_db = {
-            'cervical': {'name': '목 스트레칭', 'limit': 45, 'desc': '목 정렬 및 거북목 개선'},
-            'shoulder': {'name': '어깨 스트레칭', 'limit': 150, 'desc': '굽은 어깨 및 가동성 확보'},
-            'trunk': {'name': '몸통 스트레칭', 'limit': 60, 'desc': '척추 기립근 강화'},
-            'hip': {'name': '골반 스트레칭', 'limit': 100, 'desc': '하체 유연성 증대'},
-            'knee': {'name': '무릎 스트레칭', 'limit': 130, 'desc': '무릎 관절 안정화'},
-            'ankle': {'name': '발목 스트레칭', 'limit': 20, 'desc': '보행 균형 개선'}
-        }
+        c_m1, c_m2 = st.columns([1, 2])
+        c_m1.metric("예상 통증 지수 (VAS)", f"{pred} / 10")
+        with c_m2:
+            if pred > 6.0: st.error("🚨 중증도 통증 위험이 감지되었습니다. 즉각적인 가동성 개선이 필요합니다.")
+            elif pred > 3.0: st.warning("⚠️ 경미한 통증이 예상됩니다. 무리한 운동은 피하고 스트레칭을 늘리세요.")
+            else: st.success("✅ 통증 지수가 낮습니다. 현재의 가동성 밸런스를 잘 유지하고 계십니다.")
+    except:
+        st.info("ℹ️ AI 모델 로딩 중이거나 데이터가 부족하여 예측치를 표시할 수 없습니다.")
 
-        # 1. 관리 필요 부위 확인 (레이더 차트와 동일하게 '달성률 70%' 기준 적용)
-        # 각 부위별로 (현재값 / 기준값)이 0.7 미만인 항목을 찾습니다.
-        low_parts = []
-        for p, info in guide_db.items():
-            val = float(p_data.get(f'{p}_rom', 0))
-            achievement_rate = val / info['limit']
-            if achievement_rate < 0.7: # 70% 미만 달성 시 '집중관리'
-                low_parts.append(p)
+    st.divider()
 
-        # 2. UI 상단 메시지 결정
-        if low_parts:
-            st.warning(f"⚠️ 현재 가동 범위 달성도가 낮은 **{len(low_parts)}개 부위** 집중 프로그램입니다.")
-            display_parts = low_parts 
-        else:
-            st.success("✨ 모든 관절의 달성도가 70% 이상입니다! 예방 차원의 전신 관리 프로그램을 추천합니다.")
-            display_parts = list(guide_db.keys())
+    # 2. 중간 시각화 영역 (레이더 차트 & 상세 카드)
+    cv_l, cv_r = st.columns([1, 1])
+    
+    joints_map = {
+        'cervical': {'name': 'Cervical', 'limit': 45},
+        'shoulder': {'name': 'Shoulder', 'limit': 150},
+        'trunk': {'name': 'Trunk', 'limit': 60},
+        'hip': {'name': 'Hip', 'limit': 100},
+        'knee': {'name': 'Knee', 'limit': 130},
+        'ankle': {'name': 'Ankle', 'limit': 20}
+    }
+    joints = list(joints_map.keys())
 
-        # 3. 카드 레이아웃 출력
-        rows = [display_parts[i:i + 3] for i in range(0, len(display_parts), 3)]
+    with cv_l:
+        st.write("#### 🎯 신체 가동성 밸런스 맵")
+        actual_vals = [round(float(p_data[f'{j}_rom']), 1) for j in joints]
+        percent_vals = [round(min((v / joints_map[j]['limit']) * 100, 110), 1) for v, j in zip(actual_vals, joints)]
         
-        for row in rows:
-            cols = st.columns(3)
-            for idx, part in enumerate(row):
-                info = guide_db[part]
-                val = round(float(p_data.get(f'{part}_rom', 0)), 1)
-                achievement = (val / info['limit']) * 100
-                
-                with cols[idx]:
-                    # 차트와 동일한 로직: 70% 미만은 빨간색(error), 그 이상은 파란색(info)
-                    if achievement < 70:
-                        st.error(f"**{part.upper()} 집중관리**")
-                        status_msg = f"달성도: {achievement:.1f}% (위험)"
-                    else:
-                        st.info(f"**{part.upper()} 유지관리**")
-                        status_msg = f"달성도: {achievement:.1f}% (양호)"
-                        
-                    st.markdown(f"📍 **{info['name']}**")
-                    # 소수점 1자리 고정 포맷팅 적용
-                    st.caption(f"{info['desc']}\n\n{status_msg}\n측정값: {val:.1f}° / 기준: {info['limit']}°")
-                    
-                    search_url = f"https://www.youtube.com/results?search_query={info['name']}+방법"
-                    st.link_button("🎥 가이드 보기", search_url, use_container_width=True)
+        avg_score = sum(percent_vals) / len(percent_vals)
+        theme_color = '#ef5350' if avg_score < 70 else '#007bff'
+        fill_color = 'rgba(239, 83, 80, 0.3)' if avg_score < 70 else 'rgba(0, 123, 255, 0.3)'
+
+        fig_r = go.Figure()
+        fig_r.add_trace(go.Scatterpolar(r=[100]*6, theta=[info['name'] for info in joints_map.values()], fill='none', name='정상 기준(100%)', line=dict(color='rgba(150,150,150,0.5)', dash='dash')))
+        fig_r.add_trace(go.Scatterpolar(r=percent_vals, theta=[info['name'] for info in joints_map.values()], fill='toself', name='환자 달성도(%)', fillcolor=fill_color, line=dict(color=theme_color, width=3), customdata=actual_vals, hovertemplate='<b>%{theta}</b><br>달성도: %{r:.1f}%<br>실제: %{customdata}°<extra></extra>'))
+        
+        fig_r.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 115], tickvals=[0, 50, 100], ticktext=['0%', '50%', '100%'])), showlegend=True, margin=dict(t=50, b=50))
+        st.plotly_chart(fig_r, use_container_width=True)
+
+    with cv_r:
+        st.write("#### 📍 부위별 상세 상태")
+        for j in joints:
+            info = joints_map[j]
+            val = round(float(p_data[f'{j}_rom']), 1)
+            percent = (val / info['limit']) * 100
+            card_color = "#ef5350" if percent < 70 else "#66bb6a"
+            
+            st.markdown(f"""
+                <div style="background-color: {card_color}; padding: 12px 20px; border-radius: 8px; color: white; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: bold;">{info['name']}</span>
+                    <span><b>{val:.1f}°</b> / {info['limit']}° ({percent:.1f}%)</span>
+                </div>
+            """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # 3. 하단 운동 처방 영역
+    st.subheader("🧘 AI 맞춤형 운동 처방")
+    low_parts = [p for p, info in joints_map.items() if (float(p_data.get(f'{p}_rom', 0)) / info['limit']) < 0.7]
+
+    if low_parts:
+        st.warning(f"⚠️ 현재 가동 범위 달성도가 낮은 **{len(low_parts)}개 부위** 집중 개선 프로그램입니다.")
+        display_parts = low_parts
+    else:
+        st.success("✨ 모든 관절이 양호한 상태입니다! 예방 차원의 전신 관리 프로그램을 추천합니다.")
+        display_parts = list(joints_map.keys())
+
+    rows = [display_parts[i:i + 3] for i in range(0, len(display_parts), 3)]
+    for row in rows:
+        cols = st.columns(3)
+        for idx, part in enumerate(row):
+            info = joints_map[part]
+            val = round(float(p_data.get(f'{part}_rom', 0)), 1)
+            with cols[idx]:
+                card_style = st.error if (val / joints_map[part]['limit']) < 0.7 else st.info
+                card_style(f"**{part.upper()} {'집중' if (val / joints_map[part]['limit']) < 0.7 else '유지'}관리**")
+                st.markdown(f"📍 **{part.capitalize()} 스트레칭**")
+                st.caption(f"측정값: {val:.1f}° (기준: {joints_map[part]['limit']}°)")
+                st.link_button("🎥 가이드 보기", f"https://www.youtube.com/results?search_query={part}+mobility+exercise", use_container_width=True)
 
     # [2순위: PDF 발행] - 환자 선택 블록(if df) 안에 위치
     st.sidebar.divider()
@@ -261,7 +177,6 @@ if df is not None:
     st.sidebar.download_button("📂 PDF 리포트 발행", data=bytes(final_pdf), file_name=f"MSK_Report_{sel_id}.pdf", use_container_width=True)
 
 # --- 5. 사이드바 최하단 (업로드 섹션) ---
-for _ in range(10): st.sidebar.write("") # 간격 조절
 st.sidebar.divider()
 st.sidebar.subheader("환자 데이터 업로드")
 uploaded_file = st.sidebar.file_uploader("📂 파일 업로드", type=["xlsx"])
