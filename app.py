@@ -59,7 +59,8 @@ st.sidebar.title("데이터 관리")
 if df is not None:
     # [1순위: 환자 선택]
     p_list = sorted(df['patient_id'].unique())
-    sel_id = st.sidebar.selectbox("👤 환자 선택 (최우선)", p_list)
+    st.sidebar.subheader("환자 선택")
+    sel_id = st.sidebar.selectbox( p_list)
     p_data = df[df['patient_id'] == sel_id].iloc[0]
     history = df[df['patient_id'] == sel_id].sort_values('ingested_at')
 
