@@ -9,7 +9,12 @@
 MSK AI Analytics Dashboard
 근골격계 검사 데이터 기반 AI 분석 및 맞춤형 재활 처방 시스템
 
-!
+<img width="1913" height="928" alt="image" src="https://github.com/user-attachments/assets/e1237c26-5d77-40e7-b86e-e550f0b020d6" />
+<img width="1914" height="930" alt="image" src="https://github.com/user-attachments/assets/e36f9e57-2eee-4c78-a99c-761099ab3953" />
+<img width="1585" height="366" alt="image" src="https://github.com/user-attachments/assets/2f4d9fa7-cef6-41df-af1f-54a55b4566b1" />
+<img width="1599" height="544" alt="image" src="https://github.com/user-attachments/assets/d43df69f-cdad-41c1-b164-e5a8539d7336" />
+
+
 
 🌟 프로젝트 개요
 본 프로젝트는 환자의 6대 관절(경추, 어깨, 몸통, 고관절, 무릎, 발목) 가동 범위(ROM) 데이터를 수집하여 AI 기반의 통증 예측과 부위별 정밀 분석을 제공하는 헬스케어 대시보드입니다. 단순한 수치 나열이 아닌, 정상치 대비 달성도를 시각화하고 그에 따른 맞춤형 운동 가이드를 자동으로 생성합니다.
