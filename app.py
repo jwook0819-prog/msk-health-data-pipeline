@@ -176,13 +176,6 @@ with tab1:
         final_pdf = create_pdf(sel_id, p_data['age'], pred, "Report", radar_bytes)
         st.sidebar.download_button("📂 PDF 리포트 발행", data=bytes(final_pdf), file_name=f"MSK_{sel_id}.pdf", use_container_width=True)
 
-    # [2순위: PDF 발행] - 환자 선택 블록(if df) 안에 위치
-        st.sidebar.divider()
-        radar_bytes = fig_r.to_image(format="png")
-        radar_bytes = fig_r.to_image(format="png")
-        final_pdf = create_pdf(sel_id, p_data['age'], pred, "Care Needed" if (isinstance(pred, float) and pred > 5) else "Good", radar_bytes)
-        st.sidebar.download_button("📂 PDF 리포트 발행", data=bytes(final_pdf), file_name=f"MSK_Report_{sel_id}.pdf", use_container_width=True)
-
 # --- 5. 사이드바 최하단 (업로드 섹션) ---
 st.sidebar.divider()
 st.sidebar.subheader("환자 데이터 업로드")
