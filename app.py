@@ -57,7 +57,6 @@ st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3774/3774293.png", widt
 st.sidebar.title("진료 매니저")
 
 if df is not None:
-    # [1순위: 환자 선택]
     p_list = sorted(df['patient_id'].unique())
     st.sidebar.subheader("👤 환자 선택") 
     sel_id = st.sidebar.selectbox("", options=p_list, key="patient_selector")
@@ -65,13 +64,13 @@ if df is not None:
     p_data = df[df['patient_id'] == sel_id].iloc[0]
     history = df[df['patient_id'] == sel_id].sort_values('ingested_at')
 
-    # --- 메인 대시보드 로직 ---
+    # 메인 타이틀
     st.title("관절검사 데이터 AI 분석 시스템")
     st.caption(f"최근 측정일: {p_data['ingested_at'].strftime('%Y-%m-%d')}")
 
-tab1, tab2 = st.tabs(["📊 그룹 통계 분석", "🔍 환자별 정밀 리포트"])
+    tab1, tab2 = st.tabs(["📊 그룹 통계 분석", "🔍 환자별 정밀 리포트"])
 
-with tab1:
+    with tab1:
         st.subheader("🌐 전체 환자군 인사이트")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("평균 가동성", f"{df['mobility_score'].mean():.1f}")
@@ -84,9 +83,9 @@ with tab1:
                           template="plotly_white", title="가동성 대비 통증 분포")
         st.plotly_chart(fig_s, use_container_width=True)
 
-        with tab2:
+    with tab2:
         # 1. 상단 AI 판독 요약
-            st.markdown("#### 🩺 AI 종합 판독 결과")
+        st.markdown("#### 🩺 AI 종합 판독 결과")
         try:
             model = joblib.load('models/pain_predictor.pkl')
             feats = joblib.load('models/feature_names.pkl')
@@ -170,13 +169,17 @@ with tab1:
                     st.caption(f"📍 {info['name']} 스트레칭\n(현재: {val:.1f}°)")
                     st.link_button("🎥 가이드", f"https://www.youtube.com/results?search_query={info['name']}+운동", use_container_width=True)
 
-    # 4. 사이드바 PDF 발행 (if df 블록 안에서 줄 맞춤 필수)
-        st.sidebar.divider()
+    # 4. 사이드바 PDF 발행 (df가 있을 때만 활성화)
+    st.sidebar.divider()
+    # PDF를 위한 이미지 생성 (Kaleido 필요)
+    try:
         radar_bytes = fig_r.to_image(format="png")
         final_pdf = create_pdf(sel_id, p_data['age'], pred, "Report", radar_bytes)
         st.sidebar.download_button("📂 PDF 리포트 발행", data=bytes(final_pdf), file_name=f"MSK_{sel_id}.pdf", use_container_width=True)
+    except Exception as e:
+        st.sidebar.error("PDF 생성 준비 중...")
 
-# --- 5. 사이드바 최하단 (업로드 섹션) ---
+# --- 5. 사이드바 최하단 (업로드 및 양식) ---
 st.sidebar.divider()
 st.sidebar.subheader("환자 데이터 업로드")
 uploaded_file = st.sidebar.file_uploader("📂 파일 업로드", type=["xlsx"])
